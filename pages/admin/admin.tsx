@@ -1,8 +1,7 @@
-// pages/admin.tsx
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import React from 'react';
-
+import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabase'; // Підключення до Supabase
+import { v4 as uuidv4 } from 'uuid'; // Імпорт для UUID
 
 interface User {
   id: string;
@@ -22,52 +21,60 @@ interface Card {
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  const [newUser, setNewUser] = useState({
-    email: '',
-    first_name: '',
-    last_name: '',
-    social: '',
-  });
-
-  const [newCard, setNewCard] = useState({
-    user_id: '',
-    slug: '',
-    url: '',
-  });
+  const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', social: '' });
+  const [newCard, setNewCard] = useState({ user_id: '', slug: '', url: '' });
+  const [expandedUserIds, setExpandedUserIds] = useState<string[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchUsers();
-    fetchCards();
+    // Перевірка на авторизованість користувача
+    const checkUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) {
+        // Якщо користувач не авторизований, редірект на логін
+        router.push('/login');
+      } else {
+        // Якщо користувач авторизований, завантажити дані
+        fetchUsers();
+        fetchCards();
+      }
+    };
+
+    checkUser();
   }, []);
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, first_name, last_name, social')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (data) setUsers(data);
-    else console.error(error);
+    if (!error) setUsers(data || []);
   };
 
   const fetchCards = async () => {
     const { data, error } = await supabase
       .from('cards')
-      .select('id, user_id, slug, url')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    if (data) setCards(data);
-    else console.error(error);
+    if (!error) setCards(data || []);
+  };
+
+  // Функція для генерації унікального slug
+  const generateUniqueSlug = () => {
+    return uuidv4(); // Генеруємо унікальний slug
   };
 
   const handleCreateUser = async () => {
-    const { email, first_name, last_name, social } = newUser;
-    if (!email || !first_name || !last_name) return alert('❌ Заповніть обовʼязкові поля');
+    const { email, first_name, last_name } = newUser;
+    if (!email || !first_name || !last_name) {
+      alert('❌ Заповніть обовʼязкові поля (email, ім’я, прізвище)');
+      return;
+    }
 
-    const { error } = await supabase.from('users').insert({ email, first_name, last_name, social });
-    if (error) alert('❌ Помилка створення: ' + error.message);
+    const { error } = await supabase.from('users').insert(newUser);
+    if (error) alert(`❌ ${error.message}`);
     else {
       alert('✅ Користувача створено');
       setNewUser({ email: '', first_name: '', last_name: '', social: '' });
@@ -75,35 +82,52 @@ export default function AdminPage() {
     }
   };
 
-  const handleCreateCard = async () => {
-    const { user_id, slug, url } = newCard;
-    if (!user_id || !slug || !url) return alert('❌ Заповніть всі поля');
+  const handleUpdateUser = async (id: string, updates: Partial<User>) => {
+    await supabase.from('users').update(updates).eq('id', id);
+    fetchUsers();
+  };
 
-    const { error } = await supabase.from('cards').insert({ user_id, slug, url });
-    if (error) alert('❌ Помилка додавання картки: ' + error.message);
-    else {
+  const handleDeleteUser = async (id: string) => {
+    await supabase.from('users').delete().eq('id', id);
+    fetchUsers();
+  };
+
+  const handleCreateCard = async () => {
+    const { user_id, url } = newCard;
+    if (!user_id || !url) return alert('❌ Заповніть всі поля картки');
+
+    // Генерація slug
+    const slug = generateUniqueSlug(); // Генеруємо унікальний slug для картки
+
+    const { error } = await supabase.from('cards').insert({ 
+      user_id, 
+      slug,  // Присвоюємо згенерований slug
+      url 
+    });
+
+    if (error) {
+      alert(`❌ Помилка додавання картки: ${error.message}`);
+    } else {
       alert('✅ Картку додано');
       setNewCard({ user_id: '', slug: '', url: '' });
-      fetchCards();
+      fetchCards(); // Оновити список карток
     }
   };
 
   const handleUpdateCard = async (id: string, updates: Partial<Card>) => {
-    const { error } = await supabase.from('cards').update(updates).eq('id', id);
-    if (error) alert('❌ Не вдалося оновити картку');
-    else {
-      alert('✅ Оновлено');
-      fetchCards();
-    }
+    await supabase.from('cards').update(updates).eq('id', id);
+    fetchCards();
   };
 
   const handleDeleteCard = async (id: string) => {
-    const { error } = await supabase.from('cards').delete().eq('id', id);
-    if (error) alert('❌ Не вдалося видалити картку');
-    else {
-      alert('✅ Видалено');
-      fetchCards();
-    }
+    await supabase.from('cards').delete().eq('id', id);
+    fetchCards();
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((uid) => uid !== id) : [...prev, id]
+    );
   };
 
   return (
@@ -112,98 +136,70 @@ export default function AdminPage() {
 
       <h3>➕ Додати користувача</h3>
       <input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-      <input placeholder="Імʼя" value={newUser.first_name} onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })} />
+      <input placeholder="Ім’я" value={newUser.first_name} onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })} />
       <input placeholder="Прізвище" value={newUser.last_name} onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })} />
       <input placeholder="Social (необовʼязково)" value={newUser.social} onChange={(e) => setNewUser({ ...newUser, social: e.target.value })} />
       <button onClick={handleCreateUser}>Створити</button>
 
       <h3>📄 Користувачі</h3>
-      <table border={1} cellPadding={6} style={{ borderCollapse: 'collapse' }}>
+      <table border={1}>
         <thead>
-          <tr>
-            <th>Email</th>
-            <th>Імʼя</th>
-            <th>Прізвище</th>
-            <th>Social</th>
-          </tr>
+          <tr><th>Email</th><th>Ім’я</th><th>Прізвище</th><th>Social</th><th>Дії</th></tr>
         </thead>
         <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>{user.email}</td>
-              <td>{user.first_name}</td>
-              <td>{user.last_name}</td>
-              <td>{user.social}</td>
+          {users.map((u) => (
+            <tr key={u.id}>
+              <td>{u.email}</td>
+              <td><input value={u.first_name} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, first_name: e.target.value } : x))} /></td>
+              <td><input value={u.last_name} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, last_name: e.target.value } : x))} /></td>
+              <td><input value={u.social || ''} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, social: e.target.value } : x))} /></td>
+              <td>
+                <button onClick={() => handleUpdateUser(u.id, u)}>💾</button>
+                <button onClick={() => handleDeleteUser(u.id)}>🗑️</button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <h3>➕ Додати картку</h3>
+      <h3 style={{ marginTop: '2rem' }}>➕ Додати картку</h3>
       <select value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })}>
         <option value="">Оберіть користувача</option>
         {users.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.first_name} {u.last_name}
-          </option>
+          <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
         ))}
       </select>
       <input placeholder="Slug" value={newCard.slug} onChange={(e) => setNewCard({ ...newCard, slug: e.target.value })} />
       <input placeholder="URL" value={newCard.url} onChange={(e) => setNewCard({ ...newCard, url: e.target.value })} />
       <button onClick={handleCreateCard}>Створити</button>
 
-      <h3>💳 Картки</h3>
-      {users.map((user) => {
-        const userCards = cards.filter((c) => c.user_id === user.id);
-        return (
-          <div key={user.id} style={{ marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 'bold', cursor: 'pointer' }} onClick={() => setExpanded(expanded === user.id ? null : user.id)}>
-              📂 {user.first_name} {user.last_name}
-            </div>
-            {expanded === user.id && (
-              <table border={1} cellPadding={5} style={{ marginTop: '0.5rem' }}>
-                <thead>
-                  <tr>
-                    <th>Slug</th>
-                    <th>URL</th>
-                    <th>Дії</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userCards.map((card) => (
-                    <tr key={card.id}>
-                      <td>
-                        <input
-                          value={card.slug}
-                          onChange={(e) =>
-                            setCards((prev) =>
-                              prev.map((x) => (x.id === card.id ? { ...x, slug: e.target.value } : x))
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={card.url}
-                          onChange={(e) =>
-                            setCards((prev) =>
-                              prev.map((x) => (x.id === card.id ? { ...x, url: e.target.value } : x))
-                            )
-                          }
-                        />
-                      </td>
-                      <td>
-                        <button onClick={() => handleUpdateCard(card.id, card)}>💾</button>{' '}
-                        <button onClick={() => handleDeleteCard(card.id)}>🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+      <h3 style={{ marginTop: '2rem' }}>💳 Картки</h3>
+      {users.map((user) => (
+        <div key={user.id} style={{ marginBottom: '1rem' }}>
+          <div onClick={() => toggleExpand(user.id)} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+            📂 {user.first_name} {user.last_name}
           </div>
-        );
-      })}
+          {expandedUserIds.includes(user.id) && (
+            <table border={1} style={{ marginTop: '0.5rem' }}>
+              <thead>
+                <tr><th>Slug</th><th>URL</th><th>Дії</th></tr>
+              </thead>
+              <tbody>
+                {cards.filter(c => c.user_id === user.id).map((card) => (
+                  <tr key={card.id}>
+                    <td><input value={card.slug} onChange={(e) => setCards(prev => prev.map(x => x.id === card.id ? { ...x, slug: e.target.value } : x))} /></td>
+                    <td><input value={card.url} onChange={(e) => setCards(prev => prev.map(x => x.id === card.id ? { ...x, url: e.target.value } : x))} /></td>
+                    <td>
+                      <button onClick={() => handleUpdateCard(card.id, card)}>💾</button>
+                      <button onClick={() => handleDeleteCard(card.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

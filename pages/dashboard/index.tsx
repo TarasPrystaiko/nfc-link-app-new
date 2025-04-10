@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';  // Імпорт UUID для генерації унікальних slug
 
 interface User {
   id: string;
@@ -27,6 +28,11 @@ export default function AdminPage() {
     fetchUsers();
     fetchCards();
   }, []);
+
+  // Генерація унікального slug для картки
+  const generateUniqueSlug = () => {
+    return uuidv4(); // Генеруємо унікальний slug
+  };
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
@@ -73,10 +79,17 @@ export default function AdminPage() {
   };
 
   const handleCreateCard = async () => {
-    const { user_id, slug, url } = newCard;
-    if (!user_id || !slug || !url) return alert('❌ Заповніть всі поля картки');
+    const { user_id, url } = newCard;
+    if (!user_id || !url) return alert('❌ Заповніть всі поля картки');
 
-    const { error } = await supabase.from('cards').insert(newCard);
+    const slug = generateUniqueSlug(); // Генерація унікального slug
+
+    const { error } = await supabase.from('cards').insert({
+      user_id, 
+      slug,  // Присвоюємо згенерований slug
+      url
+    });
+
     if (error) alert(`❌ ${error.message}`);
     else {
       setNewCard({ user_id: '', slug: '', url: '' });
@@ -139,7 +152,7 @@ export default function AdminPage() {
           <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
         ))}
       </select>
-      <input placeholder="Slug" value={newCard.slug} onChange={(e) => setNewCard({ ...newCard, slug: e.target.value })} />
+      <input placeholder="Slug (генерується автоматично)" value={newCard.slug} disabled />
       <input placeholder="URL" value={newCard.url} onChange={(e) => setNewCard({ ...newCard, url: e.target.value })} />
       <button onClick={handleCreateCard}>Створити</button>
 
@@ -157,10 +170,10 @@ export default function AdminPage() {
               <tbody>
                 {cards.filter(c => c.user_id === user.id).map((card) => (
                   <tr key={card.id}>
-                    <td><input value={card.slug} onChange={(e) => setCards(prev => prev.map(x => x.id === card.id ? { ...x, slug: e.target.value } : x))} /></td>
-                    <td><input value={card.url} onChange={(e) => setCards(prev => prev.map(x => x.id === card.id ? { ...x, url: e.target.value } : x))} /></td>
+                    <td>{card.slug}</td>
+                    <td>{card.url}</td>
                     <td>
-                      <button onClick={() => handleUpdateCard(card.id, card)}>💾</button>
+                      <button onClick={() => handleUpdateCard(card.id, { slug: card.slug, url: card.url })}>💾</button>
                       <button onClick={() => handleDeleteCard(card.id)}>🗑️</button>
                     </td>
                   </tr>
