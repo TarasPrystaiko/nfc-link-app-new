@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/router';
 
 interface User {
   id: string;
@@ -47,7 +46,7 @@ export default function AdminPage() {
     fetchCards();
   }, []);
 
-  // Генерація slug на основі імені користувача
+  // Генерація slug на основі імені та прізвища
   const generateSlugFromName = (firstName: string, lastName: string, cardIndex: number) => {
     return `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${cardIndex}`;
   };
@@ -59,7 +58,8 @@ export default function AdminPage() {
       return;
     }
 
-    const slug = generateSlugFromName(first_name, last_name, 1); // Генерація унікального slug
+    // Генерація унікального slug на основі імені та прізвища
+    const slug = `${first_name.toLowerCase()}-${last_name.toLowerCase()}`;
 
     const { error } = await supabase.from('users').insert({ ...newUser, slug });
     if (error) alert(`❌ ${error.message}`);
@@ -77,12 +77,13 @@ export default function AdminPage() {
     const user = users.find(u => u.id === user_id);
     if (!user) return alert('❌ Користувача не знайдено');
 
+    // Генерація унікального slug для картки
     const cardIndex = cards.filter(card => card.user_id === user.id).length + 1; // Підраховуємо кількість карток для цього користувача
-    const slug = generateSlugFromName(user.first_name, user.last_name, cardIndex);  // Генерація унікального slug
+    const cardSlug = `${user.first_name.toLowerCase()}-${user.last_name.toLowerCase()}-${cardIndex}`;
 
     const { error } = await supabase.from('cards').insert({
       user_id,
-      slug,  // Присвоюємо згенерований slug
+      slug: cardSlug,  // Генерація унікального slug для картки
       url
     });
 
