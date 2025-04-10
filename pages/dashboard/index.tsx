@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';  // Імпорт UUID для генерації унікальних slug
 
 interface User {
   id: string;
   email: string;
   first_name: string;
   last_name: string;
-  slug: string;
   social?: string;
 }
 
@@ -22,6 +22,17 @@ export default function AdminPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', social: '' });
   const [newCard, setNewCard] = useState({ user_id: '', slug: '', url: '' });
+  const [expandedUserIds, setExpandedUserIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchCards();
+  }, []);
+
+  // Генерація унікального slug для картки
+  const generateUniqueSlug = () => {
+    return uuidv4(); // Генеруємо унікальний slug
+  };
 
   const fetchUsers = async () => {
     const { data, error } = await supabase
@@ -41,16 +52,6 @@ export default function AdminPage() {
     if (!error) setCards(data || []);
   };
 
-  useEffect(() => {
-    fetchUsers();
-    fetchCards();
-  }, []);
-
-  // Генерація slug на основі імені та прізвища
-  const generateSlugFromName = (firstName: string, lastName: string, cardIndex: number) => {
-    return `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${cardIndex}`;
-  };
-
   const handleCreateUser = async () => {
     const { email, first_name, last_name } = newUser;
     if (!email || !first_name || !last_name) {
@@ -58,10 +59,7 @@ export default function AdminPage() {
       return;
     }
 
-    // Генерація унікального slug на основі імені та прізвища
-    const slug = `${first_name.toLowerCase()}-${last_name.toLowerCase()}`;
-
-    const { error } = await supabase.from('users').insert({ ...newUser, slug });
+    const { error } = await supabase.from('users').insert(newUser);
     if (error) alert(`❌ ${error.message}`);
     else {
       alert('✅ Користувача створено');
@@ -70,20 +68,25 @@ export default function AdminPage() {
     }
   };
 
+  const handleUpdateUser = async (id: string, updates: Partial<User>) => {
+    await supabase.from('users').update(updates).eq('id', id);
+    fetchUsers();
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    await supabase.from('users').delete().eq('id', id);
+    fetchUsers();
+  };
+
   const handleCreateCard = async () => {
     const { user_id, url } = newCard;
     if (!user_id || !url) return alert('❌ Заповніть всі поля картки');
 
-    const user = users.find(u => u.id === user_id);
-    if (!user) return alert('❌ Користувача не знайдено');
-
-    // Генерація унікального slug для картки
-    const cardIndex = cards.filter(card => card.user_id === user.id).length + 1; // Підраховуємо кількість карток для цього користувача
-    const cardSlug = `${user.first_name.toLowerCase()}-${user.last_name.toLowerCase()}-${cardIndex}`;
+    const slug = generateUniqueSlug(); // Генерація унікального slug
 
     const { error } = await supabase.from('cards').insert({
-      user_id,
-      slug: cardSlug,  // Генерація унікального slug для картки
+      user_id, 
+      slug,  // Присвоюємо згенерований slug
       url
     });
 
@@ -94,6 +97,22 @@ export default function AdminPage() {
     }
   };
 
+  const handleUpdateCard = async (id: string, updates: Partial<Card>) => {
+    await supabase.from('cards').update(updates).eq('id', id);
+    fetchCards();
+  };
+
+  const handleDeleteCard = async (id: string) => {
+    await supabase.from('cards').delete().eq('id', id);
+    fetchCards();
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((uid) => uid !== id) : [...prev, id]
+    );
+  };
+
   return (
     <div style={{ padding: '2rem' }}>
       <h1>👑 Адмін Панель</h1>
@@ -102,22 +121,24 @@ export default function AdminPage() {
       <input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
       <input placeholder="Ім’я" value={newUser.first_name} onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })} />
       <input placeholder="Прізвище" value={newUser.last_name} onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })} />
+      <input placeholder="Social (необовʼязково)" value={newUser.social} onChange={(e) => setNewUser({ ...newUser, social: e.target.value })} />
       <button onClick={handleCreateUser}>Створити</button>
 
       <h3>📄 Користувачі</h3>
       <table border={1}>
         <thead>
-          <tr><th>Email</th><th>Ім’я</th><th>Прізвище</th><th>Slug</th><th>Дії</th></tr>
+          <tr><th>Email</th><th>Ім’я</th><th>Прізвище</th><th>Social</th><th>Дії</th></tr>
         </thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
               <td>{u.email}</td>
-              <td>{u.first_name}</td>
-              <td>{u.last_name}</td>
-              <td>{u.slug}</td>
+              <td><input value={u.first_name} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, first_name: e.target.value } : x))} /></td>
+              <td><input value={u.last_name} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, last_name: e.target.value } : x))} /></td>
+              <td><input value={u.social || ''} onChange={(e) => setUsers(prev => prev.map(x => x.id === u.id ? { ...x, social: e.target.value } : x))} /></td>
               <td>
-                <button onClick={() => handleCreateCard()}>Додати картку</button>
+                <button onClick={() => handleUpdateUser(u.id, u)}>💾</button>
+                <button onClick={() => handleDeleteUser(u.id)}>🗑️</button>
               </td>
             </tr>
           ))}
@@ -131,8 +152,37 @@ export default function AdminPage() {
           <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
         ))}
       </select>
+      <input placeholder="Slug (генерується автоматично)" value={newCard.slug} disabled />
       <input placeholder="URL" value={newCard.url} onChange={(e) => setNewCard({ ...newCard, url: e.target.value })} />
-      <button onClick={handleCreateCard}>Створити картку</button>
+      <button onClick={handleCreateCard}>Створити</button>
+
+      <h3 style={{ marginTop: '2rem' }}>💳 Картки</h3>
+      {users.map((user) => (
+        <div key={user.id} style={{ marginBottom: '1rem' }}>
+          <div onClick={() => toggleExpand(user.id)} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
+            📂 {user.first_name} {user.last_name}
+          </div>
+          {expandedUserIds.includes(user.id) && (
+            <table border={1} style={{ marginTop: '0.5rem' }}>
+              <thead>
+                <tr><th>Slug</th><th>URL</th><th>Дії</th></tr>
+              </thead>
+              <tbody>
+                {cards.filter(c => c.user_id === user.id).map((card) => (
+                  <tr key={card.id}>
+                    <td>{card.slug}</td>
+                    <td>{card.url}</td>
+                    <td>
+                      <button onClick={() => handleUpdateCard(card.id, { slug: card.slug, url: card.url })}>💾</button>
+                      <button onClick={() => handleDeleteCard(card.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

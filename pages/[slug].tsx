@@ -1,42 +1,42 @@
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase'
 
-const CardPage = () => {
+const UserDashboard = () => {
   const router = useRouter();
   const { slug } = router.query;  // Отримуємо slug з URL
 
-  const [card, setCard] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const fetchCard = async () => {
+    const fetchUser = async () => {
       const { data, error } = await supabase
-        .from('cards')
+        .from('users')
         .select('*')
         .eq('slug', slug)
-        .single();  // Отримуємо картку за slug
+        .single();  // Отримуємо користувача за slug
 
       if (error) {
-        console.error('❌ Помилка з отриманням картки:', error);
+        console.error('❌ Помилка з отриманням користувача:', error);
         return;
       }
 
-      setCard(data);  // Зберігаємо дані картки
+      setUser(data);  // Зберігаємо дані користувача
     };
 
     if (slug) {
-      fetchCard();
+      fetchUser();
     }
   }, [slug]);
 
-  if (!card) return <div>Завантаження...</div>;
+  if (!user) return <div>Завантаження...</div>;
 
   return (
     <div>
-      <h1>Картка: {card.slug}</h1>
-      <p>URL: <a href={card.url} target="_blank">{card.url}</a></p>
+      <h1>{user.first_name} {user.last_name} - Dashboard</h1>
+      {/* Тут можна додати іншу інформацію, пов'язану з користувачем */}
     </div>
   );
 };
 
-export default CardPage;
+export default UserDashboard;
