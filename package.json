@@ -1,0 +1,17 @@
+{
+    "name": "nfc-link-app",
+    "version": "1.0.0",
+    "scripts": {
+      "dev": "next dev"
+    },
+    "dependencies": {
+      "@supabase/supabase-js": "^2.49.4",
+      "@types/node": "^22.14.0",
+      "@types/react": "^19.1.0",
+      "next": "15.3.0",
+      "react": "^19.1.0",
+      "react-dom": "^19.1.0",
+      "typescript": "^5.8.3"
+    }
+  }
+  
