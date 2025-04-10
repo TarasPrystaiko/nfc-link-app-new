@@ -2,41 +2,41 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-const UserDashboard = () => {
+const CardPage = () => {
   const router = useRouter();
   const { slug } = router.query;  // Отримуємо slug з URL
 
-  const [user, setUser] = useState(null);
+  const [card, setCard] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchCard = async () => {
       const { data, error } = await supabase
-        .from('users')
+        .from('cards')
         .select('*')
         .eq('slug', slug)
-        .single();  // Отримуємо користувача за slug
+        .single();  // Отримуємо картку за slug
 
       if (error) {
-        console.error('❌ Помилка з отриманням користувача:', error);
+        console.error('❌ Помилка з отриманням картки:', error);
         return;
       }
 
-      setUser(data);  // Зберігаємо дані користувача
+      setCard(data);  // Зберігаємо дані картки
     };
 
     if (slug) {
-      fetchUser();
+      fetchCard();
     }
   }, [slug]);
 
-  if (!user) return <div>Завантаження...</div>;
+  if (!card) return <div>Завантаження...</div>;
 
   return (
     <div>
-      <h1>{user.first_name} {user.last_name} - Dashboard</h1>
-      {/* Тут можна додати іншу інформацію, пов'язану з користувачем */}
+      <h1>Картка: {card.slug}</h1>
+      <p>URL: <a href={card.url} target="_blank">{card.url}</a></p>
     </div>
   );
 };
 
-export default UserDashboard;
+export default CardPage;
