@@ -282,8 +282,11 @@ export default function AdminPage() {
                   .map((card) => (
                     <tr key={card.id}>
                       <td>{card.slug}</td>
-                      <td>{card.url}</td>
-                      <td>{card.original_url}</td>
+                      <td>
+            <a href={card.url} target="_blank" rel="noopener noreferrer">
+              {card.url}
+            </a>
+          </td>                      <td>{card.original_url}</td>
                       <td>
                         <button onClick={() => handleEditOriginalURL(card.id, card.original_url)}>
                           Редагувати Original URL
