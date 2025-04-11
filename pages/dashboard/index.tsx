@@ -104,7 +104,7 @@ export default function AdminPage() {
     if (!user) return alert('❌ Користувача не знайдено');
 
     const cardSlug = await generateUniqueSlug(user.id);
-    const generatedUrl = `https://nfc-link-app-new.vercel.app/${cardSlug}`;
+    const generatedUrl = `https://nfc-link-app-new.vercel.app/dashboard/${cardSlug}`;
 
     // Додаємо картку разом з original_url і згенерованим URL
     const { error } = await supabase.from('cards').insert({
