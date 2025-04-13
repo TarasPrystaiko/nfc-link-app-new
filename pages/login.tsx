@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
-// import { supabase } from '../lib/supabase';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/router';
-
-const supabase = createClient(
-  'https://your-project-url.supabase.co', // Замість цього використовуйте свій URL
-  'public-anon-key' // Ваш ключ для анонімного доступу
-);
-
-export { supabase };
 
 interface User {
   id: string;
