@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { v4 as uuidv4 } from 'uuid';  // Імпорт UUID для генерації унікальних slug
-import { useRouter } from 'next/router';  // Для маршрутизації
+import { v4 as uuidv4 } from 'uuid'; 
+import { useRouter } from 'next/router';  
+import styles from '../../styles/AdminPage.module.css'; // Імпортуємо стилі
 
 interface User {
   id: string;
@@ -16,14 +17,15 @@ interface Card {
   user_id: string;
   slug: string;
   url: string;
-  original_url: string; // Додаємо поле для оригінального URL
+  original_url: string;
+  card_name: string; // Додано поле для назви карти
 }
 
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [newUser, setNewUser] = useState({ email: '', first_name: '', last_name: '', social: '' });
-  const [newCard, setNewCard] = useState({ user_id: '', slug: '', url: '', original_url: '' });
+  const [newCard, setNewCard] = useState({ user_id: '', slug: '', url: '', original_url: '', card_name: '' });
   const [expandedUserIds, setExpandedUserIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -31,7 +33,6 @@ export default function AdminPage() {
     fetchCards();
   }, []);
 
-  // Генерація унікального slug для картки
   const generateUniqueSlug = async (userId: string) => {
     let slug = uuidv4();
     let isSlugUnique = false;
@@ -97,8 +98,8 @@ export default function AdminPage() {
   };
 
   const handleCreateCard = async () => {
-    const { user_id, original_url } = newCard;
-    if (!user_id || !original_url) return alert('❌ Заповніть всі поля картки');
+    const { user_id, original_url, card_name } = newCard;
+    if (!user_id || !original_url || !card_name) return alert('❌ Заповніть всі поля картки');
 
     const user = users.find(u => u.id === user_id);
     if (!user) return alert('❌ Користувача не знайдено');
@@ -106,17 +107,17 @@ export default function AdminPage() {
     const cardSlug = await generateUniqueSlug(user.id);
     const generatedUrl = `https://nfc-link-app-new.vercel.app/dashboard/${cardSlug}`;
 
-    // Додаємо картку разом з original_url і згенерованим URL
     const { error } = await supabase.from('cards').insert({
       user_id,
       slug: cardSlug,
-      url: generatedUrl,  // Генерація URL з новим slug
-      original_url: original_url // Збереження введеного користувачем оригінального URL
+      url: generatedUrl,
+      original_url: original_url,
+      card_name // Додаємо назву картки
     });
 
     if (error) alert(`❌ ${error.message}`);
     else {
-      setNewCard({ user_id: '', slug: '', url: '', original_url: '' }); // Оновлюємо state
+      setNewCard({ user_id: '', slug: '', url: '', original_url: '', card_name: '' });
       fetchCards();
     }
   };
@@ -132,21 +133,21 @@ export default function AdminPage() {
   };
 
   const handleEditOriginalURL = (cardId: string, currentOriginalUrl: string) => {
-    const newOriginalUrl = prompt('Введіть новий Original URL:', currentOriginalUrl); // Запитуємо новий URL у користувача
+    const newOriginalUrl = prompt('Введіть новий Original URL:', currentOriginalUrl);
     if (newOriginalUrl) {
-      handleUpdateCardOriginalURL(cardId, newOriginalUrl); // Якщо є новий URL, передаємо на оновлення
+      handleUpdateCardOriginalURL(cardId, newOriginalUrl);
     }
   };
 
   const handleUpdateCardOriginalURL = async (id: string, newOriginalUrl: string) => {
-    const { error } = await supabase.from('cards').update({ original_url: newOriginalUrl }) // Оновлюємо тільки поле original_url
-      .eq('id', id); // За id картки
+    const { error } = await supabase.from('cards').update({ original_url: newOriginalUrl })
+      .eq('id', id);
 
     if (error) {
       alert('❌ Помилка при оновленні Original URL');
     } else {
       alert('✅ Original URL успішно оновлено');
-      fetchCards(); // Перезавантажуємо картки після оновлення
+      fetchCards();
     }
   };
 
@@ -156,31 +157,19 @@ export default function AdminPage() {
     );
   };
 
+  const generateOrderNumber = (index: number) => {
+    return index + 1;
+  };
+
   return (
     <div style={{ padding: '2rem' }}>
       <h1>👑 Адмін Панель</h1>
 
       <h3>➕ Додати користувача</h3>
-      <input
-        placeholder="Email"
-        value={newUser.email}
-        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-      />
-      <input
-        placeholder="Ім’я"
-        value={newUser.first_name}
-        onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })}
-      />
-      <input
-        placeholder="Прізвище"
-        value={newUser.last_name}
-        onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })}
-      />
-      <input
-        placeholder="Social (необовʼязково)"
-        value={newUser.social}
-        onChange={(e) => setNewUser({ ...newUser, social: e.target.value })}
-      />
+      <input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+      <input placeholder="Ім’я" value={newUser.first_name} onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })} />
+      <input placeholder="Прізвище" value={newUser.last_name} onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })} />
+      <input placeholder="Social (необовʼязково)" value={newUser.social} onChange={(e) => setNewUser({ ...newUser, social: e.target.value })} />
       <button onClick={handleCreateUser}>Створити</button>
 
       <h3>📄 Користувачі</h3>
@@ -198,103 +187,60 @@ export default function AdminPage() {
           {users.map((u) => (
             <tr key={u.id}>
               <td>{u.email}</td>
+              <td><input value={u.first_name} onChange={(e) => setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, first_name: e.target.value } : x)))} /></td>
+              <td><input value={u.last_name} onChange={(e) => setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, last_name: e.target.value } : x)))} /></td>
+              <td><input value={u.social || ''} onChange={(e) => setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, social: e.target.value } : x)))} /></td>
               <td>
-                <input
-                  value={u.first_name}
-                  onChange={(e) =>
-                    setUsers((prev) =>
-                      prev.map((x) => (x.id === u.id ? { ...x, first_name: e.target.value } : x))
-                    )
-                  }
-                />
-              </td>
-              <td>
-                <input
-                  value={u.last_name}
-                  onChange={(e) =>
-                    setUsers((prev) =>
-                      prev.map((x) => (x.id === u.id ? { ...x, last_name: e.target.value } : x))
-                    )
-                  }
-                />
-              </td>
-              <td>
-                <input
-                  value={u.social || ''}
-                  onChange={(e) =>
-                    setUsers((prev) =>
-                      prev.map((x) => (x.id === u.id ? { ...x, social: e.target.value } : x))
-                    )
-                  }
-                />
-              </td>
-              <td>
-                <button onClick={() => handleUpdateUser(u.id, u)}>💾</button>
-                <button onClick={() => handleDeleteUser(u.id)}>🗑️</button>
+                <button className={styles.button} onClick={() => handleUpdateUser(u.id, u)}>Edit</button>
+                <button className={`${styles.button} ${styles.delete}`} onClick={() => handleDeleteUser(u.id)}>Del</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      <h3 style={{ marginTop: '2rem' }}>➕ Додати картку</h3>
-      <select
-        value={newCard.user_id}
-        onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })}
-      >
+      <h3>➕ Додати картку</h3>
+      <select value={newCard.user_id} onChange={(e) => setNewCard({ ...newCard, user_id: e.target.value })}>
         <option value="">Оберіть користувача</option>
         {users.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.first_name} {u.last_name}
-          </option>
+          <option key={u.id} value={u.id}>{u.first_name} {u.last_name}</option>
         ))}
       </select>
+      <input placeholder="Назва карти" value={newCard.card_name} onChange={(e) => setNewCard({ ...newCard, card_name: e.target.value })} />
       <input placeholder="Slug (генерується автоматично)" value={newCard.slug} disabled />
-      <input
-        placeholder="Original URL"
-        value={newCard.original_url}
-        onChange={(e) => setNewCard({ ...newCard, original_url: e.target.value })}
-      />
+      <input placeholder="Original URL" value={newCard.original_url} onChange={(e) => setNewCard({ ...newCard, original_url: e.target.value })} />
       <button onClick={handleCreateCard}>Створити картку</button>
 
-      <h3 style={{ marginTop: '2rem' }}>💳 Картки</h3>
+      <h3>💳 Картки</h3>
       {users.map((user) => (
-        <div key={user.id} style={{ marginBottom: '1rem' }}>
-          <div
-            onClick={() => toggleExpand(user.id)}
-            style={{ cursor: 'pointer', fontWeight: 'bold' }}
-          >
+        <div key={user.id}>
+          <div onClick={() => toggleExpand(user.id)} style={{ cursor: 'pointer', fontWeight: 'bold' }}>
             📂 {user.first_name} {user.last_name}
           </div>
           {expandedUserIds.includes(user.id) && (
-            <table border={1} style={{ marginTop: '0.5rem' }}>
+            <table border={1}>
               <thead>
                 <tr>
-                  <th>Slug</th>
+                  <th>№</th>
+                  <th>Назва карти</th>
                   <th>URL</th>
                   <th>Original URL</th>
                   <th>Дії</th>
                 </tr>
               </thead>
               <tbody>
-                {cards
-                  .filter((c) => c.user_id === user.id)
-                  .map((card) => (
-                    <tr key={card.id}>
-                      <td>{card.slug}</td>
-                      <td>
-            <a href={card.url} target="_blank" rel="noopener noreferrer">
-              {card.url}
-            </a>
-          </td>                      <td>{card.original_url}</td>
-                      <td>
-                        <button onClick={() => handleEditOriginalURL(card.id, card.original_url)}>
-                          Редагувати Original URL
-                        </button>
-                        <button onClick={() => handleDeleteCard(card.id)}>🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
+                {cards.filter((c) => c.user_id === user.id).map((card, index) => (
+                  <tr key={card.id}>
+                    <td>{generateOrderNumber(index)}</td>
+                    <td>{card.card_name}</td>
+                    <td><a href={card.url} target="_blank" rel="noopener noreferrer">{card.url}</a></td>
+                    <td><a href={card.original_url} target="_blank" rel="noopener noreferrer">{card.original_url}</a></td>
+                    <td>
+                      <button className={styles.button} onClick={() => handleEditOriginalURL(card.id, card.original_url)}>Edit</button>
+                      <button className={`${styles.button} ${styles.delete}`} onClick={() => handleDeleteCard(card.id)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}

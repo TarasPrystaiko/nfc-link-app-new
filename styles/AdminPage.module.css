@@ -1,0 +1,52 @@
+/* Стилі для кнопок */
+.button {
+    padding: 8px 16px;
+    border: none;
+    background-color: #4CAF50;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* Стиль для кнопок при наведенні */
+.button:hover {
+    background-color: #45a049;
+    transform: scale(1.05);
+}
+
+/* Іконка всередині кнопки */
+.button i {
+    margin-right: 8px; /* Відступ праворуч від іконки */
+    font-size: 16px; /* Збільшуємо розмір іконки */
+}
+
+/* Стилі для кнопки видалення */
+.delete {
+    background-color: #f44336; /* Червоний колір */
+}
+
+/* Стиль для кнопки видалення при наведенні */
+.delete:hover {
+    background-color: #e53935;
+}
+
+/* Стилі для адаптивного дизайну */
+@media (max-width: 768px) {
+    .button {
+        padding: 10px 20px;
+        font-size: 16px;
+    }
+
+    .button i {
+        margin-right: 10px;
+    }
+}
+
+/* Стиль для схованої колонки */
+.hidden {
+    display: none;
+}
