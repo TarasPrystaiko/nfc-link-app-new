@@ -93,8 +93,11 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = async (id: string) => {
-    await supabase.from('users').delete().eq('id', id);
-    fetchUsers();
+    const confirmed = window.confirm('Ви дійсно хочете видалити користувача?');
+    if (confirmed) {
+      await supabase.from('users').delete().eq('id', id);
+      fetchUsers();
+    }
   };
 
   const handleCreateCard = async () => {
@@ -128,8 +131,11 @@ export default function AdminPage() {
   };
 
   const handleDeleteCard = async (id: string) => {
-    await supabase.from('cards').delete().eq('id', id);
-    fetchCards();
+    const confirmed = window.confirm('Ви дійсно хочете видалити картку?');
+    if (confirmed) {
+      await supabase.from('cards').delete().eq('id', id);
+      fetchCards();
+    }
   };
 
   const handleEditOriginalURL = (cardId: string, currentOriginalUrl: string) => {
@@ -191,8 +197,8 @@ export default function AdminPage() {
               <td><input value={u.last_name} onChange={(e) => setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, last_name: e.target.value } : x)))} /></td>
               <td><input value={u.social || ''} onChange={(e) => setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, social: e.target.value } : x)))} /></td>
               <td>
-                <button className={styles.button} onClick={() => handleUpdateUser(u.id, u)}>Edit</button>
-                <button className={`${styles.button} ${styles.delete}`} onClick={() => handleDeleteUser(u.id)}>Del</button>
+                {/* Видаляємо кнопку Edit для користувачів */}
+                <button className={styles.button} onClick={() => handleDeleteUser(u.id)}>Del</button>
               </td>
             </tr>
           ))}
@@ -232,7 +238,12 @@ export default function AdminPage() {
                 {cards.filter((c) => c.user_id === user.id).map((card, index) => (
                   <tr key={card.id}>
                     <td>{generateOrderNumber(index)}</td>
-                    <td>{card.card_name}</td>
+                    <td>
+                      <input
+                        value={card.card_name}
+                        onChange={(e) => handleUpdateCard(card.id, { card_name: e.target.value })}
+                      />
+                    </td>
                     <td><a href={card.url} target="_blank" rel="noopener noreferrer">{card.url}</a></td>
                     <td><a href={card.original_url} target="_blank" rel="noopener noreferrer">{card.original_url}</a></td>
                     <td>
